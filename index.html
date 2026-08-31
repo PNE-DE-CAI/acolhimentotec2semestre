@@ -1,0 +1,725 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Acolhimento · Receita e Robô Chef</title>
+
+    <!-- ===== FONT ===== -->
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,400;14..32,500;14..32,600;14..32,700;14..32,800&display=swap" rel="stylesheet" />
+
+    <!-- ===== FIREBASE (modular) ===== -->
+    <script type="importmap">
+        {
+            "imports": {
+                "firebase/app": "https://www.gstatic.com/firebasejs/10.14.1/firebase-app.js",
+                "firebase/firestore": "https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore.js"
+            }
+        }
+    </script>
+
+    <style>
+        /* ========== BASE (herdado do calendário) ========== */
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        body {
+            font-family: 'Inter', sans-serif;
+            background: linear-gradient(145deg, #0a2f6c 0%, #041a3a 100%);
+            min-height: 100vh;
+            padding: 20px;
+            color: #1e293b;
+        }
+        .main-container {
+            max-width: 1440px;
+            margin: 0 auto;
+            background: #0f1a24;
+            border-radius: 48px;
+            padding: 20px;
+            box-shadow: 0 30px 35px rgba(0, 0, 0, 0.5), inset 0 1px 4px rgba(255, 255, 200, 0.1);
+            border: 1px solid #d32f2f;
+        }
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background: rgba(10, 47, 108, 0.85);
+            backdrop-filter: blur(4px);
+            padding: 12px 24px;
+            border-radius: 60px;
+            margin-bottom: 25px;
+            flex-wrap: wrap;
+            gap: 15px;
+        }
+        .logo-area {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            flex-wrap: wrap;
+        }
+        .logo-area img {
+            height: 55px;
+            width: auto;
+            border-radius: 12px;
+            background: white;
+            padding: 4px;
+            object-fit: contain;
+        }
+        .logo-text {
+            font-size: 1rem;
+            font-weight: 600;
+            color: #ffec9e;
+            line-height: 1.3;
+        }
+        .logo-text small {
+            display: block;
+            font-weight: 400;
+            font-size: 0.75rem;
+            color: rgba(255, 236, 158, 0.6);
+        }
+        .title-badge {
+            background: #d32f2f;
+            color: white;
+            padding: 6px 18px;
+            border-radius: 3rem;
+            font-weight: bold;
+            letter-spacing: 1px;
+            font-size: 0.85rem;
+        }
+
+        /* ===== LAYOUT DA ATIVIDADE ===== */
+        .app {
+            display: grid;
+            grid-template-columns: 1fr 360px;
+            gap: 20px;
+            padding: 0 8px 8px;
+        }
+        @media (max-width: 960px) {
+            .app {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        .card {
+            background: white;
+            border-radius: 32px;
+            padding: 1.5rem;
+            box-shadow: 0 8px 20px rgba(0, 0, 0, 0.2);
+            border: 1px solid #e0e4e9;
+            margin-bottom: 1.5rem;
+        }
+        .card:last-child {
+            margin-bottom: 0;
+        }
+
+        .card-header {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 0.8rem;
+        }
+        .card-header .step-badge {
+            background: #d32f2f;
+            color: white;
+            font-weight: 700;
+            font-size: 0.7rem;
+            padding: 0.2rem 1rem;
+            border-radius: 40px;
+            letter-spacing: 0.5px;
+        }
+        .card-header h2 {
+            font-size: 1.4rem;
+            font-weight: 700;
+            color: #0a2f6c;
+        }
+
+        .prompt-box {
+            background: #f2efe9;
+            border-left: 6px solid #d32f2f;
+            padding: 1.2rem 1.8rem;
+            border-radius: 16px;
+            font-family: 'Courier New', monospace;
+            font-size: 0.95rem;
+            margin: 1rem 0;
+            white-space: pre-wrap;
+            word-break: break-word;
+        }
+
+        .receitas-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+            gap: 1.5rem;
+            margin: 1.5rem 0;
+        }
+        .receita-card {
+            background: #fcf9f5;
+            border-radius: 20px;
+            padding: 1.2rem;
+            border: 1px solid #e5ddd2;
+            transition: transform 0.15s;
+        }
+        .receita-card:hover {
+            transform: translateY(-4px);
+        }
+        .receita-card h3 {
+            background: #d9c9b4;
+            display: inline-block;
+            padding: 0.1rem 1.2rem;
+            border-radius: 30px;
+            font-size: 0.75rem;
+            font-weight: 700;
+            color: #2f1f13;
+            margin-bottom: 0.5rem;
+        }
+        .receita-card h4 {
+            font-size: 1.1rem;
+            margin-bottom: 0.2rem;
+        }
+        .receita-card .badge {
+            font-size: 0.7rem;
+            background: #eee7de;
+            padding: 0.1rem 0.8rem;
+            border-radius: 30px;
+            color: #4f3f2f;
+            display: inline-block;
+            margin-bottom: 0.5rem;
+        }
+        .receita-card ul,
+        .receita-card ol {
+            font-size: 0.9rem;
+            padding-left: 1.2rem;
+        }
+        .receita-card li {
+            margin-bottom: 0.2rem;
+        }
+
+        textarea {
+            width: 100%;
+            padding: 0.8rem 1rem;
+            border-radius: 16px;
+            border: 1px solid #d6cdc0;
+            font-family: 'Inter', sans-serif;
+            font-size: 0.95rem;
+            background: #fcfaf7;
+            resize: vertical;
+            min-height: 100px;
+            transition: border 0.2s;
+        }
+        textarea:focus {
+            outline: none;
+            border-color: #d32f2f;
+            box-shadow: 0 0 0 3px rgba(211, 47, 47, 0.15);
+        }
+
+        .btn {
+            background: #0a2f6c;
+            border: none;
+            color: white;
+            font-weight: 600;
+            padding: 0.7rem 2rem;
+            border-radius: 40px;
+            font-size: 0.9rem;
+            cursor: pointer;
+            transition: background 0.2s, transform 0.1s;
+            box-shadow: 0 2px 6px rgba(0, 0, 0, 0.1);
+            font-family: 'Inter', sans-serif;
+        }
+        .btn:hover {
+            background: #1a4a7a;
+            transform: scale(1.02);
+        }
+        .btn-secondary {
+            background: #d9cfc0;
+            color: #2d2a24;
+        }
+        .btn-secondary:hover {
+            background: #c9bdaa;
+        }
+        .btn-danger {
+            background: #d32f2f;
+        }
+        .btn-danger:hover {
+            background: #b71c1c;
+        }
+        .btn-success {
+            background: #2e7d32;
+        }
+        .btn-success:hover {
+            background: #1b5e20;
+        }
+
+        .flex-row {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 12px;
+            align-items: center;
+            margin-top: 1rem;
+        }
+
+        .status-msg {
+            font-size: 0.85rem;
+            color: #2e7d32;
+            font-weight: 500;
+            margin-left: 6px;
+        }
+
+        /* side panel */
+        .sidebar {
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+        }
+        .panel-header {
+            margin-bottom: 8px;
+        }
+        .panel-label {
+            font-size: 0.65rem;
+            font-weight: 700;
+            color: #d32f2f;
+            letter-spacing: 0.1em;
+            text-transform: uppercase;
+            margin-bottom: 2px;
+        }
+        .panel-date {
+            font-size: 0.95rem;
+            font-weight: 600;
+            color: #0a2f6c;
+        }
+
+        .reflexao-box {
+            background: #f2eee8;
+            padding: 1.2rem 1.5rem;
+            border-radius: 20px;
+            margin-top: 1rem;
+        }
+        .reflexao-box h3 {
+            font-size: 1.1rem;
+            color: #0a2f6c;
+            margin-bottom: 0.3rem;
+        }
+
+        .page-footer {
+            text-align: center;
+            font-size: 0.68rem;
+            color: rgba(255, 236, 158, 0.35);
+            margin-top: 30px;
+            padding: 0 8px;
+            font-weight: 400;
+        }
+
+        .inline-icon {
+            font-size: 1.4rem;
+            vertical-align: middle;
+            margin-right: 4px;
+        }
+
+        @media (max-width: 500px) {
+            body {
+                padding: 10px;
+            }
+            .main-container {
+                border-radius: 20px;
+                padding: 10px;
+            }
+            .header {
+                border-radius: 24px;
+                padding: 10px 16px;
+            }
+            .logo-area img {
+                height: 40px;
+            }
+            .card {
+                border-radius: 20px;
+                padding: 1rem;
+            }
+            .card-header h2 {
+                font-size: 1.1rem;
+            }
+            .receitas-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        /* loading spinner */
+        .spinner {
+            display: inline-block;
+            width: 18px;
+            height: 18px;
+            border: 2px solid rgba(255, 255, 255, 0.3);
+            border-top-color: #fff;
+            border-radius: 50%;
+            animation: spin 0.6s linear infinite;
+            vertical-align: middle;
+            margin-right: 6px;
+        }
+        @keyframes spin {
+            to {
+                transform: rotate(360deg);
+            }
+        }
+        .hidden {
+            display: none !important;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="main-container">
+
+        <!-- ===== CABEÇALHO (mesmo do calendário) ===== -->
+        <div class="header">
+            <div class="logo-area">
+                <img src="https://i.ibb.co/0p01LzxB/logo3de.jpg" alt="Logo Seduc SP" />
+                <div class="logo-text">
+                    Formação URE Caieiras
+                    <small>Desenvolvimento Web e IA · 2026</small>
+                </div>
+            </div>
+            <span class="title-badge">Acolhimento</span>
+        </div>
+
+        <!-- ===== CONTEÚDO PRINCIPAL ===== -->
+        <div class="app">
+
+            <!-- COLUDA ESQUERDA (passos) -->
+            <div class="left-col">
+
+                <!-- PASSO 1 -->
+                <div class="card">
+                    <div class="card-header">
+                        <span class="step-badge">Passo 1</span>
+                        <h2>🧑‍🍳 O Desafio do Chef</h2>
+                    </div>
+                    <p><strong>Você é um chef iniciante</strong> e precisa de uma receita de bolo de chocolate. Vamos usar a ajuda de uma <strong>Inteligência Artificial</strong> para criar a receita. O problema é que a IA tem umas manias estranhas…</p>
+                    <p style="margin-top: 0.5rem;">Em grupos (ou individualmente), vocês vão receber uma receita gerada pela IA e precisarão <strong>analisar, criticar e reescrever</strong> para que ela fique realmente boa.</p>
+                    <div style="background: #f2efe9; border-radius: 16px; padding: 0.8rem 1.5rem; margin-top: 1rem;">
+                        <p style="font-weight: 500; margin-bottom: 0.2rem;">🤖 <strong>Prompt enviado para a IA:</strong></p>
+                        <div class="prompt-box">
+                            "Atue como um chef de cozinha. Preciso de uma receita de bolo de chocolate, mas sou um cozinheiro iniciante. A receita precisa ser para 4 pessoas, usar poucos ingredientes e ser feita no liquidificador. Quero uma lista de ingredientes e o passo a passo."
+                        </div>
+                    </div>
+                </div>
+
+                <!-- PASSO 2 -->
+                <div class="card">
+                    <div class="card-header">
+                        <span class="step-badge">Passo 2</span>
+                        <h2>🤖 As Receitas da IA</h2>
+                    </div>
+                    <p>A IA nos devolveu <strong>três versões</strong> diferentes da receita. Cada grupo vai analisar uma delas. Leia com atenção e identifique os problemas.</p>
+
+                    <div class="receitas-grid">
+                        <!-- Receita A -->
+                        <div class="receita-card">
+                            <h3>📋 Receita A</h3>
+                            <h4>Bolo Robusto</h4>
+                            <span class="badge">“IA sem filtro”</span>
+                            <ul>
+                                <li><strong>Ingredientes:</strong> 1 kg de farinha, 1 litro de leite, 1 copo de óleo, 1 ovo.</li>
+                                <li><strong>Modo:</strong> Misture tudo, coloque no forno a 100°C por 3 horas.</li>
+                            </ul>
+                        </div>
+                        <!-- Receita B -->
+                        <div class="receita-card">
+                            <h3>📋 Receita B</h3>
+                            <h4>Bolo Minimalista</h4>
+                            <span class="badge">“IA criativa demais”</span>
+                            <ul>
+                                <li><strong>Ingredientes:</strong> 1 xícara de chocolate em pó.</li>
+                                <li><strong>Modo:</strong> Coma o chocolate em pó puro.</li>
+                            </ul>
+                        </div>
+                        <!-- Receita C -->
+                        <div class="receita-card">
+                            <h3>📋 Receita C</h3>
+                            <h4>Bolo Extravagante</h4>
+                            <span class="badge">“IA exagerada”</span>
+                            <ul>
+                                <li><strong>Ingredientes:</strong> 2 xícaras de açúcar, 3 de farinha, 4 ovos, 1 colher de fermento, 1 tablete de chocolate belga, 1 xícara de creme de leite, ½ de azeite trufado.</li>
+                                <li><strong>Modo:</strong> Bata claras em neve, derreta chocolate em banho-maria, peneire farinha 3x… (processo de 5h).</li>
+                            </ul>
+                        </div>
+                    </div>
+
+                    <p style="margin-top: 0.8rem;"><strong>👩‍🏫 Instrução:</strong> Cada grupo escolhe uma receita e responde:</p>
+                    <ul style="padding-left: 1.5rem;">
+                        <li><strong>1.</strong> Esta receita é viável? Dá para fazer o bolo?</li>
+                        <li><strong>2.</strong> O que está errado ou pode ser melhorado?</li>
+                        <li><strong>3.</strong> Reescrevam a receita em <strong>um parágrafo</strong> para que um iniciante consiga fazer.</li>
+                    </ul>
+                </div>
+
+                <!-- PASSO 3: campos para preencher -->
+                <div class="card" id="passo3">
+                    <div class="card-header">
+                        <span class="step-badge">Passo 3</span>
+                        <h2>✍️ Sua análise e reescrita</h2>
+                    </div>
+                    <p>Use os campos abaixo para registrar a análise do seu grupo. Os dados serão salvos automaticamente no <strong>.</strong> (sem necessidade de login).</p>
+
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1.2rem; margin-top: 1.2rem;">
+                        <div>
+                            <label style="font-weight: 600; display: block; margin-bottom: 4px;">📝 Problemas identificados:</label>
+                            <textarea id="problemas" placeholder="Ex: quantidades exageradas, modo de preparo confuso, falta de fermento..."></textarea>
+                        </div>
+                        <div>
+                            <label style="font-weight: 600; display: block; margin-bottom: 4px;">✅ Receita reescrita (um parágrafo):</label>
+                            <textarea id="reescrita" placeholder="Escreva aqui a versão melhorada da receita, com instruções claras para um iniciante."></textarea>
+                        </div>
+                    </div>
+
+                    <div class="flex-row">
+                        <button class="btn btn-success" id="btnSalvar">💾 Salvar</button>
+                        <button class="btn btn-secondary" id="btnCarregar">📥 Carregar dados</button>
+                        <span id="statusMsg" class="status-msg"></span>
+                    </div>
+                    <div style="margin-top: 0.5rem; font-size: 0.75rem; color: #94a3b8;">
+                        <span id="sessionIdDisplay">Sessão: —</span>
+                    </div>
+                </div>
+
+                <!-- PASSO 4: reflexão -->
+                <div class="card">
+                    <div class="card-header">
+                        <span class="step-badge">Passo 4</span>
+                        <h2>🧠 Reflexão conjunta</h2>
+                    </div>
+                    <p>Vamos conectar a dinâmica com o papel do professor na era da IA. Reflita sobre as perguntas abaixo e compartilhe com o grande grupo.</p>
+
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1.2rem; margin-top: 1rem;">
+                        <div class="reflexao-box">
+                            <h3>🔎 O que a IA fez?</h3>
+                            <p>Ela respondeu ao prompt, mas <strong>sem critério, sem senso crítico</strong>. Gerou respostas rápidas, mas não necessariamente úteis ou corretas.</p>
+                            <p style="margin-top: 0.5rem;"><em>“Ela ‘pensou’ rápido, mas não ‘pensou certo’.”</em></p>
+                        </div>
+                        <div class="reflexao-box">
+                            <h3>👩‍🏫 Qual foi o nosso papel?</h3>
+                            <p>Nós, professores, atuamos como <strong>auditores críticos</strong>. Aplicamos critérios: “Isso é muito? Pouco? O modo de fazer está claro?”.</p>
+                            <p style="margin-top: 0.5rem;"><strong>Analogia:</strong> a receita é o código, a IA é o gerador de código, e o professor é o mediador que valida, adapta e ensina a pensar.</p>
+                        </div>
+                    </div>
+
+                    <div style="background: #e8b86d20; border-left: 6px solid #d32f2f; padding: 1rem 1.5rem; border-radius: 16px; margin-top: 1.2rem;">
+                        <p style="font-size: 1.05rem; font-weight: 500;">💬 Pergunta final:</p>
+                        <p>“Se um aluno da educação básica recebesse a <strong>Receita C</strong>, o que aconteceria? Ele aprenderia a fazer o bolo ou só se frustraria?”</p>
+                        <p style="margin-top: 0.3rem; font-style: italic;">— Essa reflexão é exatamente o que vamos explorar com HTML, CSS e Python ao longo da formação.</p>
+                    </div>
+                </div>
+
+                <!-- PASSO 5: fechamento -->
+                <div class="card" style="background: #f4efe8;">
+                    <div class="card-header">
+                        <span class="step-badge">🎯 Fechamento</span>
+                        <h2>🍫 O Chef e a Sala de Aula</h2>
+                    </div>
+                    <p>Assim como a IA nos deu receitas malucas, ela também pode gerar códigos com erros, excessos ou falta de semântica. O <strong>papel do professor</strong> não é proibir a ferramenta, mas <strong>elevar o nível de exigência</strong> sobre o resultado.</p>
+                    <div style="display: flex; flex-wrap: wrap; gap: 1rem; margin-top: 1rem;">
+                        <div style="flex: 1; min-width: 160px; background: white; padding: 1rem; border-radius: 16px; box-shadow: 0 2px 6px rgba(0,0,0,0.04);">
+                            <span style="font-size: 2rem;">🧐</span>
+                            <p><strong>Auditor</strong> – verifica se o código “abre” e tem os elementos trabalhados.</p>
+                        </div>
+                        <div style="flex: 1; min-width: 160px; background: white; padding: 1rem; border-radius: 16px; box-shadow: 0 2px 6px rgba(0,0,0,0.04);">
+                            <span style="font-size: 2rem;">📐</span>
+                            <p><strong>Curador</strong> – filtra o que é relevante e adequado ao nível dos alunos.</p>
+                        </div>
+                        <div style="flex: 1; min-width: 160px; background: white; padding: 1rem; border-radius: 16px; box-shadow: 0 2px 6px rgba(0,0,0,0.04);">
+                            <span style="font-size: 2rem;">🧩</span>
+                            <p><strong>Mediador</strong> – provoca o pensamento crítico, não entrega o pronto.</p>
+                        </div>
+                    </div>
+                    <p style="margin-top: 1.2rem; font-style: italic; border-top: 1px solid #d6cdc0; padding-top: 1rem;">“Ensinar Computação com IA não é proibir a ferramenta, mas sim elevar o nível de exigência sobre o resultado.”</p>
+                </div>
+
+            </div><!-- /left-col -->
+
+            <!-- ===== SIDEBAR (painel de status) ===== -->
+            <div class="sidebar">
+                <div class="card">
+                    <div class="panel-header">
+                        <div class="panel-label">📌 Sessão atual</div>
+                        <div class="panel-date" id="sessionIdDisplaySide">Carregando...</div>
+                    </div>
+                    <hr style="border: none; border-top: 1px solid #f1f5f9; margin: 8px 0;" />
+                    <div style="font-size: 0.85rem; color: #475569;">
+                        <p><strong>Status do salvamento:</strong> <span id="statusSide">Aguardando ação</span></p>
+                        <p style="margin-top: 4px; font-size: 0.75rem; color: #94a3b8;">Os dados são salvos. Você pode retomar de qualquer dispositivo usando o mesmo ID de sessão.</p>
+                    </div>
+                    <div style="margin-top: 12px;">
+                        <button class="btn btn-secondary" id="btnCopiarId" style="width: 100%;">📋 Copiar ID da sessão</button>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <div class="panel-header">
+                        <div class="panel-label">⚙️ Sobre o Firebase</div>
+                    </div>
+                    <p style="font-size: 0.85rem; color: #475569;">Este formulário utiliza <strong>salvamento</strong> para armazenar suas respostas. Nenhum login é necessário. Os dados são salvos em um documento com o ID da sua sessão.</p>
+                    <p style="font-size: 0.75rem; color: #94a3b8; margin-top: 6px;"></p>
+                </div>
+            </div>
+
+        </div><!-- /app -->
+
+        <div class="page-footer">
+            Atividade adaptada da Formação URE Caieiras · Desenvolvimento Web e IA · 2026
+        </div>
+
+    </div><!-- /main-container -->
+
+    <!-- ===== FIREBASE + LÓGICA ===== -->
+    <script type="module">
+        // ============================================================
+        // 1. CONFIGURAÇÃO DO FIREBASE (SUBSTITUA COM SEUS DADOS)
+        // ============================================================
+        import { initializeApp } from 'firebase/app';
+        import { getFirestore, doc, setDoc, getDoc } from 'firebase/firestore';
+
+        // ⚠️ COLOQUE AQUI AS CREDENCIAIS DO SEU PROJETO FIREBASE
+        const firebaseConfig = {
+  apiKey: "AIzaSyDHgd5UbrdeXCsfDezkzMEskl0tc4QcBQU",
+  authDomain: "ure-caieiras-conselho.firebaseapp.com",
+  projectId: "ure-caieiras-conselho",
+  storageBucket: "ure-caieiras-conselho.firebasestorage.app",
+  messagingSenderId: "713109651546",
+  appId: "1:713109651546:web:44b5e50404f3ea50715863"
+};
+
+        // Inicializa Firebase
+        const app = initializeApp(firebaseConfig);
+        const db = getFirestore(app);
+
+        // ============================================================
+        // 2. GERENCIAMENTO DA SESSÃO (UUID no localStorage)
+        // ============================================================
+        function getSessionId() {
+            let id = localStorage.getItem('receita_session_id');
+            if (!id) {
+                id = crypto.randomUUID ? crypto.randomUUID() : 'sessao-' + Date.now() + '-' + Math.random().toString(36).slice(2, 8);
+                localStorage.setItem('receita_session_id', id);
+            }
+            return id;
+        }
+
+        const sessionId = getSessionId();
+        document.getElementById('sessionIdDisplay').textContent = `Sessão: ${sessionId}`;
+        document.getElementById('sessionIdDisplaySide').textContent = sessionId;
+
+        // ============================================================
+        // 3. REFERÊNCIAS AOS CAMPOS
+        // ============================================================
+        const problemasEl = document.getElementById('problemas');
+        const reescritaEl = document.getElementById('reescrita');
+        const statusMsg = document.getElementById('statusMsg');
+        const statusSide = document.getElementById('statusSide');
+
+        // ============================================================
+        // 4. FUNÇÃO PARA SALVAR
+        // ============================================================
+        async function salvarDados() {
+            const problemas = problemasEl.value.trim();
+            const reescrita = reescritaEl.value.trim();
+
+            if (!problemas && !reescrita) {
+                statusMsg.textContent = '⚠️ Nenhum dado para salvar. Preencha pelo menos um campo.';
+                statusMsg.style.color = '#d32f2f';
+                statusSide.textContent = 'Nenhum dado';
+                return;
+            }
+
+            statusMsg.innerHTML = '<span class="spinner"></span> Salvando...';
+            statusSide.textContent = 'Salvando...';
+
+            try {
+                const docRef = doc(db, 'atividades_receita', sessionId);
+                await setDoc(docRef, {
+                    problemas: problemas,
+                    reescrita: reescrita,
+                    atualizadoEm: new Date().toISOString()
+                }, { merge: true });
+
+                statusMsg.textContent = '✅ Dados salvos com sucesso!';
+                statusMsg.style.color = '#2e7d32';
+                statusSide.textContent = '✅ Salvo em ' + new Date().toLocaleTimeString();
+            } catch (error) {
+                console.error('Erro ao salvar:', error);
+                statusMsg.textContent = '❌ Erro ao salvar. Verifique o console.';
+                statusMsg.style.color = '#d32f2f';
+                statusSide.textContent = '❌ Erro';
+            }
+        }
+
+        // ============================================================
+        // 5. FUNÇÃO PARA CARREGAR
+        // ============================================================
+        async function carregarDados() {
+            statusMsg.textContent = '📥 Carregando...';
+            statusMsg.style.color = '#0a2f6c';
+            statusSide.textContent = 'Carregando...';
+
+            try {
+                const docRef = doc(db, 'atividades_receita', sessionId);
+                const docSnap = await getDoc(docRef);
+
+                if (docSnap.exists()) {
+                    const data = docSnap.data();
+                    problemasEl.value = data.problemas || '';
+                    reescritaEl.value = data.reescrita || '';
+                    statusMsg.textContent = '✅ Dados carregados!';
+                    statusMsg.style.color = '#2e7d32';
+                    statusSide.textContent = '📥 Carregado em ' + new Date().toLocaleTimeString();
+                } else {
+                    statusMsg.textContent = 'ℹ️ Nenhum dado salvo para esta sessão.';
+                    statusMsg.style.color = '#94a3b8';
+                    statusSide.textContent = 'Nenhum dado encontrado';
+                }
+            } catch (error) {
+                console.error('Erro ao carregar:', error);
+                statusMsg.textContent = '❌ Erro ao carregar. Verifique o console.';
+                statusMsg.style.color = '#d32f2f';
+                statusSide.textContent = '❌ Erro';
+            }
+        }
+
+        // ============================================================
+        // 6. EVENTOS DOS BOTÕES
+        // ============================================================
+        document.getElementById('btnSalvar').addEventListener('click', salvarDados);
+        document.getElementById('btnCarregar').addEventListener('click', carregarDados);
+
+        // Copiar ID
+        document.getElementById('btnCopiarId').addEventListener('click', () => {
+            navigator.clipboard.writeText(sessionId).then(() => {
+                const btn = document.getElementById('btnCopiarId');
+                const original = btn.textContent;
+                btn.textContent = '✅ Copiado!';
+                setTimeout(() => { btn.textContent = original; }, 2000);
+            }).catch(() => {
+                alert('ID da sessão: ' + sessionId);
+            });
+        });
+
+        // ============================================================
+        // 7. CARREGAR AUTOMATICAMENTE AO INICIAR
+        // ============================================================
+        // (opcional: carregar dados salvos ao abrir a página)
+        carregarDados();
+
+        // ============================================================
+        // 8. AVISO SOBRE CONFIGURAÇÃO (se as credenciais não forem alteradas)
+        // ============================================================
+        if (firebaseConfig.apiKey === 'SUA_API_KEY') {
+            console.warn('⚠️ Substitua as credenciais do Firebase no código (firebaseConfig).');
+            statusSide.textContent = '⚠️ Configure o Firebase';
+            statusMsg.textContent = '⚠️ Configure as credenciais do Firebase no código.';
+            statusMsg.style.color = '#d32f2f';
+        }
+
+        console.log('🔐 Sessão ativa:', sessionId);
+    </script>
+
+</body>
+</html>
